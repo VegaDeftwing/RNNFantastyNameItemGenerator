@@ -15,9 +15,9 @@ class GenerativeGRU(tf.keras.Model):
     A GRU based model meant to generate text.
     It has an embedding layer on the inputs and a dense layer on the output
     '''
-    def __call__(self, vocab_size, embedding_dim, rnn_units):
+    def __init__(self, vocab_size, embedding_dim, rnn_units):
         super().__init__(self)
-        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim) #NOTE: Support more params in future
+        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=True) #NOTE: Support more params in future
         self.gru = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
         self.dense = tf.keras.layers.Dense(vocab_size)
     

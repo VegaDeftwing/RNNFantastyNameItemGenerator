@@ -10,7 +10,7 @@ from rich import pretty, print
 def main():
     vocab = util.load_all_the_data()
     # print(vocab[:100])
-    vocab = tf.strings.unicode_split(vocab, input_encoding='UTF-8')
+    vocab = tf.strings.unicode_split(vocab, input_encoding='UTF-8')[:10000]
     data = vocab.to_tensor()
     ids_from_chars = tf.keras.layers.experimental.preprocessing.StringLookup()
     ids_from_chars.adapt(vocab)
@@ -56,12 +56,9 @@ def main():
         print("Target:", text_from_ids(target_example).numpy())
     
     # Batch size
-    BATCH_SIZE = 64
+    BATCH_SIZE = 128
 
     # Buffer size to shuffle the dataset
-    # (TF data is designed to work with possibly infinite sequences,
-    # so it doesn't attempt to shuffle the entire sequence in memory. Instead,
-    # it maintains a buffer in which it shuffles elements).
     BUFFER_SIZE = 10000
 
     dataset = (
@@ -81,16 +78,19 @@ def main():
     rnn_units = 1024
 
     model = GenerativeGRU(vocab_size, embedding_dim, rnn_units)
-    # model.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-    #         optimizer=tf.keras.optimizers.Adam(),
-    #         metrics=['accuracy'])
+
+    model.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        optimizer=tf.keras.optimizers.Adam(),
+        metrics=['accuracy'])
     
+    model.fit(dataset, epochs=10)
+
     for input_example_batch, target_example_batch in dataset.take(1):
         print(input_example_batch.shape)
         example_batch_predictions = model(input_example_batch)
         print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
-
     model.summary()
+
     sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
     sampled_indices = tf.squeeze(sampled_indices,axis=-1).numpy()
     print(sampled_indices)

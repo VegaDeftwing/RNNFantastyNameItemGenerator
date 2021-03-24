@@ -14,7 +14,7 @@ import os
 def fuck(how_many):
     import webbrowser
     print("Ha, i give no fucks, get stick bugged")
-    webbrowser.open("https://www.youtube.com/embed/Tt7bzxurJ1I")
+    webbrowser.open("https://www.youtube.com/embed/fC7oUOUEEi4?autoplay=1")
     exit(-1)
 
 def load_all_the_data():

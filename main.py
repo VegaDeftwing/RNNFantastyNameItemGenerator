@@ -83,20 +83,19 @@ def main():
         optimizer=tf.keras.optimizers.Adam(),
         metrics=['accuracy'])
     
-    model.fit(dataset, epochs=10)
+    model.fit(dataset, epochs=25)
 
     for input_example_batch, target_example_batch in dataset.take(1):
-        print(input_example_batch.shape)
         example_batch_predictions = model(input_example_batch)
         print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
-    model.summary()
 
-    sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
-    sampled_indices = tf.squeeze(sampled_indices,axis=-1).numpy()
-    print(sampled_indices)
-    print("Input:\n", text_from_ids(input_example_batch[0]).numpy())
-    print()
-    print("Next Char Predictions:\n", text_from_ids(sampled_indices).numpy())
+    for i in range(len(example_batch_predictions)):
+        sampled_indices = tf.random.categorical(example_batch_predictions[i], num_samples=1)
+        sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
+        print(f"Input: {text_from_ids(input_example_batch[i]).numpy()}")
+        print(f"Next Char Predictions: {text_from_ids(sampled_indices).numpy()}")
+        print()
+
     
     util.fuck(1)
     return

@@ -17,13 +17,14 @@ class GenerativeGRU(tf.keras.Model):
     '''
     def __init__(self, vocab_size, embedding_dim, rnn_units):
         super().__init__(self)
-        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=True) #NOTE: Support more params in future
+        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim, mask_zero=False) #NOTE: Support more params in future
         self.gru = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
         self.dense = tf.keras.layers.Dense(vocab_size)
     
     def call(self, inputs, states=None, return_state=False, training=False):
         x = inputs
         x = self.embedding(x, training=training)
+        print(f'embedding {x.shape}')
         if states is None:
             states = self.gru.get_initial_state(x)
         x, states = self.gru(x, initial_state=states, training=training)

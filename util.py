@@ -34,4 +34,4 @@ def load_all_the_data():
 
     # print(df.to_numpy())
 
-    return tf.convert_to_tensor(df.to_numpy().flatten())
+    return df.to_numpy().flatten().tolist()

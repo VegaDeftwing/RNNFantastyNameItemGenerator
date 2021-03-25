@@ -10,7 +10,7 @@ from rich import pretty, print
 def main():
     vocab = util.load_all_the_data()
     # print(vocab[:100])
-    vocab = tf.strings.unicode_split(vocab, input_encoding='UTF-8')[:10000]
+    vocab = tf.strings.unicode_split(vocab, input_encoding='UTF-8')
     data = vocab.to_tensor()
     ids_from_chars = tf.keras.layers.experimental.preprocessing.StringLookup()
     ids_from_chars.adapt(vocab)
@@ -75,7 +75,7 @@ def main():
     embedding_dim = 256
 
     # Number of RNN units
-    rnn_units = 1024
+    rnn_units = 2048
 
     model = GenerativeGRU(vocab_size, embedding_dim, rnn_units)
 
@@ -83,7 +83,8 @@ def main():
         optimizer=tf.keras.optimizers.Adam(),
         metrics=['accuracy'])
     
-    model.fit(dataset, epochs=25)
+    early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)
+    model.fit(dataset.take(10000//128), epochs=20, callbacks=[early_stopping_callback])
 
     for input_example_batch, target_example_batch in dataset.take(1):
         example_batch_predictions = model(input_example_batch)
@@ -95,7 +96,6 @@ def main():
         print(f"Input: {text_from_ids(input_example_batch[i]).numpy()}")
         print(f"Next Char Predictions: {text_from_ids(sampled_indices).numpy()}")
         print()
-
     
     util.fuck(1)
     return

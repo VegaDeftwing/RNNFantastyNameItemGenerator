@@ -2,10 +2,11 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
-from model import GenerativeGRU
+from model import GenerativeGRU, OneStep
 import util
 
 from rich import pretty, print
+import os
 
 def main():
     vocab = util.load_all_the_data()
@@ -26,8 +27,8 @@ def main():
     ids_dataset = tf.data.Dataset.from_tensor_slices(all_ids)
 
 
-    for ids in ids_dataset.take(10):
-        print(chars_from_ids(ids).numpy().astype('U13'))
+    # for ids in ids_dataset.take(10):
+    #     print(chars_from_ids(ids).numpy().astype('U13'))
     
     # seq_length = 50
 
@@ -38,11 +39,11 @@ def main():
 
     # print(sequences)
 
-    for seq in ids_dataset.take(1):
-        print(chars_from_ids(seq))
+    # for seq in ids_dataset.take(1):
+    #     print(chars_from_ids(seq))
 
-    for seq in ids_dataset.take(5):
-        print(text_from_ids(seq).numpy())
+    # for seq in ids_dataset.take(5):
+    #     print(text_from_ids(seq).numpy())
     
     def split_input_target(sequence):
         input_text = sequence[:-1]
@@ -56,7 +57,7 @@ def main():
         print("Target:", text_from_ids(target_example).numpy())
     
     # Batch size
-    BATCH_SIZE = 128
+    BATCH_SIZE = 256
 
     # Buffer size to shuffle the dataset
     BUFFER_SIZE = 10000
@@ -67,7 +68,7 @@ def main():
         .batch(BATCH_SIZE, drop_remainder=True)
         .prefetch(tf.data.experimental.AUTOTUNE))
 
-    print(dataset) 
+    # print(dataset)
     # Length of the vocabulary in chars
     vocab_size = len(ids_from_chars.get_vocabulary())
 
@@ -83,21 +84,42 @@ def main():
         optimizer=tf.keras.optimizers.Adam(),
         metrics=['accuracy'])
     
-    early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)
-    model.fit(dataset.take(10000//128), epochs=20, callbacks=[early_stopping_callback])
+    checkpoint_path = './training_checkpoints_lower'
+    if os.path.isdir(checkpoint_path):
+        latest = tf.train.latest_checkpoint(checkpoint_path)
+        model.load_weights(latest)
+    else:
+        checkpoint_prefix = os.path.join(checkpoint_path, 'ckpt_{epoch}')
+        checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=True)
+        early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2)
+        model.fit(dataset, epochs=20, callbacks=[early_stopping_callback, checkpoint_callback])
 
-    for input_example_batch, target_example_batch in dataset.take(1):
-        example_batch_predictions = model(input_example_batch)
-        print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
+    one_step_model = OneStep(model, chars_from_ids, ids_from_chars, 0.5)
 
-    for i in range(len(example_batch_predictions)):
-        sampled_indices = tf.random.categorical(example_batch_predictions[i], num_samples=1)
-        sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
-        print(f"Input: {text_from_ids(input_example_batch[i]).numpy()}")
-        print(f"Next Char Predictions: {text_from_ids(sampled_indices).numpy()}")
-        print()
+    states = None
+    next_char = tf.constant(['I', 'III', 'F', 'S', 'Large', 'B', 'A', 'A ', 'P', 'T', '1 '])
+    result = [next_char]
+
+    for n in range(100):
+        next_char, states = one_step_model.generate_one_step(next_char, states=states)
+        result.append(next_char)
     
-    util.fuck(1)
+    result = tf.strings.join(result)
+
+    print(result)
+
+    # for input_example_batch, target_example_batch in dataset.take(1):
+    #     example_batch_predictions = model(input_example_batch)
+    #     print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
+
+    # for i in range(len(example_batch_predictions)):
+    #     sampled_indices = tf.random.categorical(example_batch_predictions[i], num_samples=1)
+    #     sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
+    #     print(f"Input: {text_from_ids(input_example_batch[i]).numpy()}")
+    #     print(f"Next Char Predictions: {text_from_ids(sampled_indices).numpy()}")
+    #     print()
+    
+    # util.fuck(1)
     return
 
 

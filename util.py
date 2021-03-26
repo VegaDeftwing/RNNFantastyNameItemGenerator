@@ -7,7 +7,6 @@ import pandas as pd
 
 # util libs
 from rich import pretty, print
-import os
 
 #hahahha
 

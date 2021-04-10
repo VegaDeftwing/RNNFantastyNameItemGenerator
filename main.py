@@ -8,7 +8,8 @@ import os
 
 
 def main():
-    vocab = util.load_all_the_data()
+    input_path = 'final/items_now_adj_big.csv'
+    vocab = util.load_all_the_data(input_path)
     vocab = tf.strings.unicode_split(vocab, input_encoding='UTF-8')
     data = vocab.to_tensor()
     ids_from_chars = tf.keras.layers.experimental.preprocessing.StringLookup()
@@ -84,7 +85,7 @@ def main():
         metrics=['accuracy']
     )
 
-    checkpoint_path = './training_checkpoints_512'
+    checkpoint_path = './training_checkpoints_512_big'
     if os.path.isdir(checkpoint_path) and len(os.listdir(checkpoint_path)) > 0:
         latest = tf.train.latest_checkpoint(checkpoint_path)
         model.load_weights(latest).expect_partial()
@@ -142,3 +143,4 @@ if __name__ == "__main__":
             # Virtual devices must be set before GPUs have been initialized
             print(e)
     main()
+

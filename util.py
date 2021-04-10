@@ -3,9 +3,10 @@
 import pandas as pd
 
 
-def load_all_the_data():
+def load_all_the_data(path: str):
     # Need to load in the data... as a csv
-    df = pd.read_csv('final/items_now.csv', header=None, names=['names'])
+    df = pd.read_csv(path, header=None, names=['names'])
+    df = df.astype('str')
     df = df['names'].str.lower()
     # df.info(memory_usage='deep')
     # df = df.drop_duplicates()

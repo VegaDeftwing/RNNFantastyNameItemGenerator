@@ -5,7 +5,9 @@ from model import GenerativeGRU, OneStep
 import util
 from rich import pretty, print
 import os
-
+import string
+import random
+import nltk
 
 def main():
     input_path = 'final/items_now_adj_big.csv'
@@ -85,7 +87,7 @@ def main():
         metrics=['accuracy']
     )
 
-    checkpoint_path = './training_checkpoints_512_big'
+    checkpoint_path = './training_checkpoints_512_big_40'
     if os.path.isdir(checkpoint_path) and len(os.listdir(checkpoint_path)) > 0:
         latest = tf.train.latest_checkpoint(checkpoint_path)
         model.load_weights(latest).expect_partial()
@@ -100,29 +102,51 @@ def main():
         logdir = "logs/fit/" + datetime.now().strftime("%Y%m%d-%H%M%S")
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir)
         model.fit(
-            dataset, epochs=20,
+            dataset, epochs=40,
             callbacks=[checkpoint_callback, tensorboard_callback])
 
-    temperature = 0.75
+    temperature = 0.8
     noise_weight = 0.0
 
     one_step_model = OneStep(
         model, chars_from_ids, ids_from_chars, temperature, noise_weight)
 
     states = None
-    seeds = np.random.randint(2, len(ids_from_chars.get_vocabulary()), 100)
-    next_char = tf.constant(chars_from_ids(seeds))
-    result = [next_char]
 
-    for _ in range(50):
-        next_char, states = one_step_model.generate_one_step(
-            next_char, states=states)
-        result.append(next_char)
-
-    result = tf.strings.join(result)
-
-    for r in result:
-        print(r.numpy().decode('UTF-8'))
+    noExamples = 100
+    MAX_NUM_WORDS = 7
+    MIN_NUM_WORDS = 3
+    for _ in range(noExamples):
+        seed = random.randint(0, 26)
+        next_char = tf.constant([string.ascii_letters[seed]])
+        result = [next_char]
+        num_words = 0
+        idx = 0
+        prev_idx = 0
+        previous_words = []
+        states = None
+        while(num_words < MAX_NUM_WORDS):
+            next_char, states = one_step_model.generate_one_step(
+                next_char, states=states)
+            result.append(next_char)
+            idx += 1
+            if (next_char == ' '):
+                previous_words.append(
+                    tf.strings.join(
+                        result[prev_idx:idx])[0]
+                    .numpy()
+                    .decode('UTF-8')
+                    .strip()
+                )
+                num_words += 1
+                prev_idx = idx
+                if num_words > MIN_NUM_WORDS:
+                    tag = nltk.pos_tag(previous_words)[-1][1]
+                    if 'NN' in tag or 'VB' in tag:
+                        break
+        result = tf.strings.join(result)
+        for r in result:
+            print(r.numpy().decode('UTF-8'))
 
     return
 
@@ -143,4 +167,3 @@ if __name__ == "__main__":
             # Virtual devices must be set before GPUs have been initialized
             print(e)
     main()
-

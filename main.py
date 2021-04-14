@@ -9,6 +9,7 @@ import string
 import random
 import nltk
 
+
 def main():
     input_path = 'final/items_now_adj_big.csv'
     vocab = util.load_all_the_data(input_path)
@@ -105,7 +106,7 @@ def main():
             dataset, epochs=40,
             callbacks=[checkpoint_callback, tensorboard_callback])
 
-    temperature = 0.8
+    temperature = 1.2
     noise_weight = 0.0
 
     one_step_model = OneStep(
@@ -113,24 +114,28 @@ def main():
 
     states = None
 
-    noExamples = 100
+    NUM_OF_EXAMPLES = 100
     MAX_NUM_WORDS = 7
     MIN_NUM_WORDS = 3
-    for _ in range(noExamples):
+    for _ in range(NUM_OF_EXAMPLES):
         seed = random.randint(0, 26)
         next_char = tf.constant([string.ascii_letters[seed]])
         result = [next_char]
         num_words = 0
+        num_chars = 0
         idx = 0
         prev_idx = 0
         previous_words = []
         states = None
+        should_print = True
         while(num_words < MAX_NUM_WORDS):
             next_char, states = one_step_model.generate_one_step(
                 next_char, states=states)
             result.append(next_char)
             idx += 1
+            num_chars += 1
             if (next_char == ' '):
+                num_chars = 0
                 previous_words.append(
                     tf.strings.join(
                         result[prev_idx:idx])[0]
@@ -144,9 +149,14 @@ def main():
                     tag = nltk.pos_tag(previous_words)[-1][1]
                     if 'NN' in tag or 'VB' in tag:
                         break
-        result = tf.strings.join(result)
-        for r in result:
-            print(r.numpy().decode('UTF-8'))
+            if num_chars > 16:
+                should_print = False
+                break
+
+        if should_print:
+            result = tf.strings.join(result)  # This doesn't need to exist
+            for r in result:
+                print(r.numpy().decode('UTF-8'))
 
     return
 

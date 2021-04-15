@@ -1,5 +1,8 @@
 # Model for Final
 import tensorflow as tf
+import nltk
+import gensim
+import numpy as np
 
 
 class GenerativeGRU(tf.keras.Model):
@@ -7,7 +10,10 @@ class GenerativeGRU(tf.keras.Model):
     A GRU based model meant to generate text. It has an embedding layer
     on the inputs and a dense layer on the output.
     '''
-    def __init__(self, vocab_size, embedding_dim, rnn_units):
+    def __init__(self,
+                 vocab_size,
+                 embedding_dim,
+                 rnn_units):
         super().__init__(self)
         self.old_weights = None
         self.embedding = tf.keras.layers.Embedding(
@@ -30,12 +36,6 @@ class GenerativeGRU(tf.keras.Model):
             return x
 
     def apply_random(self, noise_weight):
-        # if not self.old_weights:
-        #     self.old_weights = self.dense.weights
-        #     print(self.old_weights)
-        #     return
-        # print(self.old_weights)
-        # self.dense.set_weights(self.old_weights)
         for layer in self.dense.trainable_weights:
             noise = tf.random.normal(layer.shape) * noise_weight
             layer.assign_add(noise)
@@ -100,17 +100,16 @@ class OneStep(tf.keras.Model):
         return predicted_chars, states
 
 
-class SensibleTextOutputMetric():
-    def __init__(self,
-                 name='sensible_text_output_metric',
-                 dtype=None,
-                 from_logits=False,
-                 axis=-1):
-        self.name = name
-        self.dtype = dtype
-        self.from_logits = from_logits
-        self.axis = axis
-        return
+class WordSimilarityMetric():
+    def __init__(self, dataset: list):
+        gen_docs = [nltk.word_tokenize(p) for p in dataset]
+        self.dictionary = gensim.corpora.Dictionary(gen_docs)
+        corpus = [self.dictionary.doc2bow(p) for p in gen_docs]
+        self.tf_idf = gensim.models.TfidfModel(corpus)
+        self.sim = gensim.similarities.docsim.SparseMatrixSimilarity(
+            self.tf_idf[corpus], num_features=len(self.dictionary))
 
-    def __call__(self):
-        return
+    def __call__(self, phrase):
+        query = [w.lower() for w in nltk.word_tokenize(phrase)]
+        query_bow = self.dictionary.doc2bow(query)
+        return np.mean(self.sim[self.tf_idf[query_bow]])

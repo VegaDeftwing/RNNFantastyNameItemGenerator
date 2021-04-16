@@ -5,6 +5,7 @@ from util import load_all_the_data
 from rich import pretty, print
 import os
 import nltk
+import random
 
 
 def main():
@@ -93,9 +94,9 @@ def main():
     MIN_NUM_WORDS = 3
     i = 0
     while i < NUM_OF_EXAMPLES:
-        # seed = random.randint(0, 25)
-        # next_char = tf.constant([string.ascii_letters[seed]])
-        next_char = tf.constant(['sword'])
+        seed = random.randint(0, 25)
+        next_char = tf.constant([string.ascii_letters[seed]])
+        # next_char = tf.constant(['sword'])
         result = [next_char]
         num_words = 0
         num_chars = 0

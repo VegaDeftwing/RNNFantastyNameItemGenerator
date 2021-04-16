@@ -6,6 +6,7 @@ from rich import pretty, print
 import os
 import nltk
 import random
+import string
 
 
 def main():

@@ -100,7 +100,7 @@ class OneStep(tf.keras.Model):
         return predicted_chars, states
 
 
-class WordSimilarityMetric():
+class BadWordSimilarityMetric():
     def __init__(self, dataset: list):
         gen_docs = [nltk.word_tokenize(p) for p in dataset]
         self.dictionary = gensim.corpora.Dictionary(gen_docs)

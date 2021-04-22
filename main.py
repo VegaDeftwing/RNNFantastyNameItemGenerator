@@ -1,6 +1,6 @@
 import tensorflow as tf
 from datetime import datetime
-from model import GenerativeGRU, OneStep
+from model import GenerativeGRU, OneStep, BadWordSimilarityMetric
 from util import load_all_the_data
 from rich import pretty, print
 import os
@@ -12,7 +12,8 @@ import string
 def main():
     input_path = 'final/items_now_adj_big.csv'
     vocab = load_all_the_data(input_path)
-    # similarity_metric = WordSimilarityMetric(vocab.tolist())
+    if SIMILARITY_METRIC:
+        similarity_metric = BadWordSimilarityMetric(vocab.tolist())
     vocab = tf.strings.unicode_split(vocab, input_encoding='UTF-8')
     data = vocab.to_tensor()
     ids_from_chars = tf.keras.layers.experimental.preprocessing.StringLookup()
@@ -49,8 +50,11 @@ def main():
     # Length of the vocabulary in chars
     vocab_size = len(ids_from_chars.get_vocabulary())
 
-    # The embedding dimension
-    embedding_dim = 64
+    '''
+    The embedding dimension
+    https://developers.googleblog.com/2017/11/introducing-tensorflow-feature-columns.html
+    '''
+    embedding_dim = round(vocab_size ** 0.25)
 
     # Number of RNN units
     rnn_units = 512
@@ -63,7 +67,7 @@ def main():
         metrics=['accuracy']
     )
 
-    checkpoint_path = './training_checkpoints_512_big_embed_64'
+    checkpoint_path = './final_unit512_attention26_embed3'
     if os.path.isdir(checkpoint_path) and len(os.listdir(checkpoint_path)) > 0:
         latest = tf.train.latest_checkpoint(checkpoint_path)
         model.load_weights(latest).expect_partial()
@@ -81,18 +85,10 @@ def main():
             dataset, epochs=40,
             callbacks=[checkpoint_callback, tensorboard_callback])
 
-    temperature = 1.0
-    noise_weight = 0.0
-
     one_step_model = OneStep(
-        model, chars_from_ids, ids_from_chars, temperature, noise_weight)
+        model, chars_from_ids, ids_from_chars, TEMPERATURE, NOISE_WEIGHT)
 
     states = None
-
-    NUM_OF_EXAMPLES = 100
-    MAX_NUM_CHARS = 12
-    MAX_NUM_WORDS = 7
-    MIN_NUM_WORDS = 3
     i = 0
     while i < NUM_OF_EXAMPLES:
         seed = random.randint(0, 25)
@@ -133,11 +129,21 @@ def main():
                 break
         i += 1
         if should_print:
-            # print(similarity_metric(' '.join(words)))
+            if SIMILARITY_METRIC:
+                print(similarity_metric(' '.join(words)))
             print(' '.join(words))
 
     return
 
+
+# Configs
+NUM_OF_EXAMPLES = 100
+MAX_NUM_CHARS = 12
+MAX_NUM_WORDS = 7
+MIN_NUM_WORDS = 3
+SIMILARITY_METRIC = False
+TEMPERATURE = 1.0
+NOISE_WEIGHT = 0
 
 if __name__ == "__main__":
     pretty.install()

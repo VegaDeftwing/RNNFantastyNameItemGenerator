@@ -3,7 +3,8 @@ import tensorflow as tf
 import nltk
 import gensim
 import numpy as np
-from fastDamerauLevenshtein import damerauLevenshtein
+from jellyfish.cjellyfish import damerau_levenshtein_distance
+import multiprocessing as mp
 
 
 class GenerativeGRU(tf.keras.Model):
@@ -101,36 +102,29 @@ class OneStep(tf.keras.Model):
         return predicted_chars, states
 
 
-class WordSimilarityMetric():    
+class WordSimilarityMetric():
+    '''
+    Currently uses the levensthein distance in a multiprocessed
+    fashion to 
+    '''
     def __init__(self, dataset: list):
-        # self.tok_dataset = [nltk.sent_tokenize(p) for p in dataset]
-        # self.dictionary = gensim.corpora.Dictionary(self.tok_dataset)
-        # corpus = [self.dictionary.doc2bow(p) for p in self.tok_dataset]
-        # self.sim = gensim.similarities.levenshtein.LevenshteinSimilarityIndex(
-        #     self.dictionary)
         self.dataset = dataset
+        self.pool = mp.Pool(mp.cpu_count())
 
     def __call__(self, phrase):
-        import time
-        # query = [w.lower() for w in nltk.sent_tokenize(phrase)]
-        # query_bow = self.dictionary.doc2bow(query)
-        # if len(self.sim[query_bow]) > 0:
-        #     print(self.tok_dataset[self.sim[query_bow][0][0]])
-        #     return self.sim[query_bow][0][1]
-        # return self.sim[query]
-        # btime = time.perf_counter()
-        # similarities = []
-        # for s in self.dataset[0:10000]:
-        #     similarities.append(nltk.edit_distance(phrase, s, transpositions=True))
-        # np.min(similarities)
-        # print(f'nltk: {time.perf_counter()-btime}')
-        btime = time.perf_counter()
-        similarities = []
-        for s in self.dataset:
-            similarities.append(damerauLevenshtein(phrase, s, similarity=False))
+        similarities = self.pool.starmap(
+            damerau_levenshtein_distance,
+            [(phrase, s) for s in self.dataset]
+        )
         lowest = np.min(similarities)
-        print(f'fastDL: {time.perf_counter()-btime}')
         return lowest
+
+    def __del__(self):
+        self.dataset = None
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
+        self.pool = None
 
 
 class BadWordSimilarityMetric():

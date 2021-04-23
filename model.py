@@ -3,6 +3,7 @@ import tensorflow as tf
 import nltk
 import gensim
 import numpy as np
+from fastDamerauLevenshtein import damerauLevenshtein
 
 
 class GenerativeGRU(tf.keras.Model):
@@ -98,6 +99,38 @@ class OneStep(tf.keras.Model):
         predicted_chars = self.chars_from_ids(predicted_ids)
 
         return predicted_chars, states
+
+
+class WordSimilarityMetric():    
+    def __init__(self, dataset: list):
+        # self.tok_dataset = [nltk.sent_tokenize(p) for p in dataset]
+        # self.dictionary = gensim.corpora.Dictionary(self.tok_dataset)
+        # corpus = [self.dictionary.doc2bow(p) for p in self.tok_dataset]
+        # self.sim = gensim.similarities.levenshtein.LevenshteinSimilarityIndex(
+        #     self.dictionary)
+        self.dataset = dataset
+
+    def __call__(self, phrase):
+        import time
+        # query = [w.lower() for w in nltk.sent_tokenize(phrase)]
+        # query_bow = self.dictionary.doc2bow(query)
+        # if len(self.sim[query_bow]) > 0:
+        #     print(self.tok_dataset[self.sim[query_bow][0][0]])
+        #     return self.sim[query_bow][0][1]
+        # return self.sim[query]
+        # btime = time.perf_counter()
+        # similarities = []
+        # for s in self.dataset[0:10000]:
+        #     similarities.append(nltk.edit_distance(phrase, s, transpositions=True))
+        # np.min(similarities)
+        # print(f'nltk: {time.perf_counter()-btime}')
+        btime = time.perf_counter()
+        similarities = []
+        for s in self.dataset:
+            similarities.append(damerauLevenshtein(phrase, s, similarity=False))
+        lowest = np.min(similarities)
+        print(f'fastDL: {time.perf_counter()-btime}')
+        return lowest
 
 
 class BadWordSimilarityMetric():

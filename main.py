@@ -1,6 +1,6 @@
 import tensorflow as tf
 from datetime import datetime
-from model import GenerativeGRU, OneStep, BadWordSimilarityMetric
+from model import GenerativeGRU, OneStep, WordSimilarityMetric
 from util import load_all_the_data
 from rich import pretty, print
 import os
@@ -13,7 +13,7 @@ def main():
     input_path = 'final/items_now_adj_big.csv'
     vocab = load_all_the_data(input_path)
     if SIMILARITY_METRIC:
-        similarity_metric = BadWordSimilarityMetric(vocab.tolist())
+        similarity_metric = WordSimilarityMetric(vocab.tolist())
     vocab = tf.strings.unicode_split(vocab, input_encoding='UTF-8')
     data = vocab.to_tensor()
     ids_from_chars = tf.keras.layers.experimental.preprocessing.StringLookup()
@@ -56,10 +56,7 @@ def main():
     '''
     embedding_dim = round(vocab_size ** 0.25)
 
-    # Number of RNN units
-    rnn_units = 512
-
-    model = GenerativeGRU(vocab_size, embedding_dim, rnn_units)
+    model = GenerativeGRU(vocab_size, embedding_dim, RNN_UNITS)
 
     model.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(
         from_logits=True),
@@ -67,14 +64,13 @@ def main():
         metrics=['accuracy']
     )
 
-    checkpoint_path = './final_unit512_attention26_embed3'
-    if os.path.isdir(checkpoint_path) and len(os.listdir(checkpoint_path)) > 0:
-        latest = tf.train.latest_checkpoint(checkpoint_path)
+    if os.path.isdir(CHECKPOINT_PATH) and len(os.listdir(CHECKPOINT_PATH)) > 0:
+        latest = tf.train.latest_checkpoint(CHECKPOINT_PATH)
         model.load_weights(latest).expect_partial()
         chkpt = tf.train.Checkpoint(model)
         chkpt.restore(latest).expect_partial()
     else:
-        checkpoint_prefix = os.path.join(checkpoint_path, 'ckpt_{epoch}')
+        checkpoint_prefix = os.path.join(CHECKPOINT_PATH, 'ckpt_{epoch}')
         checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
             filepath=checkpoint_prefix, save_weights_only=True)
         # early_stopping_callback = tf.keras.callbacks.EarlyStopping(
@@ -82,7 +78,7 @@ def main():
         logdir = "logs/fit/" + datetime.now().strftime("%Y%m%d-%H%M%S")
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir)
         model.fit(
-            dataset, epochs=40,
+            dataset, epochs=EPOCHS,
             callbacks=[checkpoint_callback, tensorboard_callback])
 
     one_step_model = OneStep(
@@ -137,11 +133,14 @@ def main():
 
 
 # Configs
+RNN_UNITS = 512
+EPOCHS = 40
+CHECKPOINT_PATH = f'./final_units{RNN_UNITS}_epochs{EPOCHS}'
 NUM_OF_EXAMPLES = 100
 MAX_NUM_CHARS = 12
 MAX_NUM_WORDS = 7
 MIN_NUM_WORDS = 3
-SIMILARITY_METRIC = False
+SIMILARITY_METRIC = True
 TEMPERATURE = 1.0
 NOISE_WEIGHT = 0
 

@@ -5,6 +5,7 @@ import gensim
 import numpy as np
 from jellyfish.cjellyfish import damerau_levenshtein_distance
 import multiprocessing as mp
+import signal
 
 
 class GenerativeGRU(tf.keras.Model):
@@ -102,22 +103,52 @@ class OneStep(tf.keras.Model):
         return predicted_chars, states
 
 
-class WordSimilarityMetric():
+class DamerauLevenshteinSimilarity():
     '''
-    Currently uses the levensthein distance in a multiprocessed
-    fashion to 
+    Uses the levensthein distance in a multiprocessed fashion to
+    compute scaled word similarity to string length.
     '''
-    def __init__(self, dataset: list):
+    def __init__(self, dataset: list, num_sim=1):
         self.dataset = dataset
-        self.pool = mp.Pool(mp.cpu_count())
+        self.num_sim = num_sim
+        if num_sim == 0:
+            self.num_sim = len(dataset)
+        self.pool = mp.Pool(mp.cpu_count(), self._init_worker)
+
+    @staticmethod
+    def _init_worker():
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     def __call__(self, phrase):
-        similarities = self.pool.starmap(
-            damerau_levenshtein_distance,
-            [(phrase, s) for s in self.dataset]
-        )
-        lowest = np.min(similarities)
-        return lowest
+        similarities = []
+        try:
+            similarities = self.pool.starmap_async(
+                self._similarity,
+                [(phrase, s) for s in self.dataset]
+            )
+            similarities = np.array(similarities.get(60))
+        except KeyboardInterrupt:
+            print("Interupted!")
+            print("Cleaning up pool...")
+            self.pool.terminate()
+            self.pool.join()
+            exit()
+        except Exception as e:
+            print(type(e), e)
+            print("Cleaning up pool...")
+            self.pool.terminate()
+            self.pool.join()
+            exit()
+        top = similarities[np.argsort(similarities)[-self.num_sim:]]
+        return np.mean(top)
+
+    @staticmethod
+    def _similarity(s1, s2):
+        len1 = len(s1)
+        len2 = len(s2)
+        maxDist = min(len1, len2) + (max(len1, len2) - min(len1, len2))
+        distance = damerau_levenshtein_distance(s1, s2)
+        return (maxDist - distance) / maxDist
 
     def __del__(self):
         self.dataset = None
@@ -127,7 +158,7 @@ class WordSimilarityMetric():
         self.pool = None
 
 
-class BadWordSimilarityMetric():
+class TFIDFSimilarity():
     def __init__(self, dataset: list):
         gen_docs = [nltk.word_tokenize(p) for p in dataset]
         self.dictionary = gensim.corpora.Dictionary(gen_docs)

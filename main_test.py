@@ -6,6 +6,8 @@ import os
 import nltk
 import random
 import string
+from scipy import stats
+import tqdm
 
 
 def main():
@@ -83,8 +85,10 @@ def main():
     one_step_model = OneStep(
         model, chars_from_ids, ids_from_chars, TEMPERATURE, NOISE_WEIGHT)
 
+    similarities = []
     states = None
     i = 0
+    text_output_file = open(SAVE_PATH + '_output.txt', 'w')
     while i < NUM_OF_EXAMPLES:
         seed = random.randint(0, 25)
         next_char = tf.constant([string.ascii_letters[seed]])
@@ -127,22 +131,55 @@ def main():
             full_string = ' '.join(words)
             if SIMILARITY_METRIC:
                 similarity = similarity_metric(full_string)
-                print(similarity)
-            print(full_string)
+                if PRINT_OUT:
+                    print(similarity)
+                if SAVE_METRICS:
+                    similarities.append(similarity)
+            if PRINT_OUT:
+                print(full_string)
+            text_output_file.write(full_string + '\n')
+            g_prog_bar.update()
+    with open(SAVE_PATH + '_desc.txt', 'w') as f:
+        desc = stats.describe(similarities)
+        f.writelines([
+            'Configuration: \n',
+            f'RNN_UNITS = {RNN_UNITS}\n',
+            f'TEMPERATURE = {TEMPERATURE}\n',
+            f'NOISE = {NOISE_WEIGHT}\n',
+            '\n',
+            'Statistics of Levenshtein Similarities:\n',
+            f'nobs = {desc.nobs}\n',
+            f'minmax = {desc.minmax}\n',
+            f'mean = {desc.mean}\n',
+            f'variance = {desc.variance}\n',
+            f'skewness = {desc.skewness}\n',
+            f'kurtosis = {desc.kurtosis}\n'
+        ])
+        f.close()
+    text_output_file.close()
     return
 
 
 # Configs
 RNN_UNITS = 512
 EPOCHS = 100
-NUM_OF_EXAMPLES = 100
+NUM_OF_EXAMPLES = 10000
 MAX_NUM_CHARS = 12
 MAX_NUM_WORDS = 7
 MIN_NUM_WORDS = 3
 SIMILARITY_METRIC = True
 TEMPERATURE = 1.0
 NOISE_WEIGHT = 0
+PRINT_OUT = False
+SAVE_METRICS = True
 CHECKPOINT_PATH = f'./final_units{RNN_UNITS}_epochs{EPOCHS}'
+SAVE_PATH = (
+    f'./similarity_units{RNN_UNITS}'
+    + f'_temp{TEMPERATURE}_noise{NOISE_WEIGHT}')
+UNITS = [128, 256, 512, 1024]
+TEMPS = [0.5, 1.0, 1.5]
+g_prog_bar = tqdm.tqdm(total=(len(UNITS) * len(TEMPS) * NUM_OF_EXAMPLES))
+
 
 if __name__ == "__main__":
     pretty.install()
@@ -159,4 +196,14 @@ if __name__ == "__main__":
         except RuntimeError as e:
             # Virtual devices must be set before GPUs have been initialized
             print(e)
-    main()
+
+    for unit in UNITS:
+        RNN_UNITS = unit
+        for temp in TEMPS:
+            TEMPERATURE = temp
+            SAVE_PATH = (
+                f'./similarity_units{RNN_UNITS}'
+                f'_temp{TEMPERATURE}_noise{NOISE_WEIGHT}'
+            )
+            CHECKPOINT_PATH = f'./final_units{RNN_UNITS}_epochs{EPOCHS}'
+            main()

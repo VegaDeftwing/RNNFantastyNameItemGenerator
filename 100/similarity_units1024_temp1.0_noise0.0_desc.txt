@@ -1,0 +1,12 @@
+Configuration: 
+RNN_UNITS = 1024
+TEMPERATURE = 1.0
+NOISE = 0.0
+
+Statistics of Levenshtein Similarities:
+nobs = 100
+minmax = (0.3617021276595745, 1.0)
+mean = 0.5799797571386899
+variance = 0.026051548720862124
+skewness = 1.162309903934681
+kurtosis = 0.529476330699937
